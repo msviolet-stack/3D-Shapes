@@ -4,18 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Cube → Net Explorer (Kids)</title>
+
+  <!-- ✅ Import map fixes: "Failed to resolve module specifier 'three'" -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/": "https://unpkg.com/three@0.160.0/"
+    }
+  }
+  </script>
+
   <style>
     :root{
       --ink:#1b2150;
-      --panel:#ffffffcc;
-      --panel2:#ffffff;
+      --panel:#ffffffd6;
       --shadow: 0 12px 30px rgba(0,0,0,.12);
     }
     *{ box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     body{
       margin:0;
       color: var(--ink);
-      background: linear-gradient(135deg, #ffe8ff 0%, #e8f5ff 35%, #eaffef 70%, #fff6df 100%);
+      background: linear-gradient(135deg, #ffe6ff 0%, #e6f6ff 30%, #eaffef 60%, #fff5dc 100%);
     }
     .wrap{
       display:grid;
@@ -51,13 +61,16 @@
     label{ display:block; font-weight:900; margin-bottom:8px; }
     input[type="range"]{ width:100%; }
     .small{ font-size:12px; opacity:.85; }
+
     .canvas{
       background: radial-gradient(circle at 20% 10%, #ffffff 0%, #f6fbff 35%, #f2fff7 70%, #fffaf0 100%);
       border: 2px solid rgba(27,33,80,.10);
       border-radius:18px;
       overflow:hidden;
       position:relative;
-      height: calc(100vh - 32px); /* IMPORTANT: gives the renderer real height */
+
+      /* ✅ Give a real height so the renderer shows */
+      height: calc(100vh - 32px);
       box-shadow: var(--shadow);
     }
     .hint{
@@ -68,28 +81,31 @@
       border-radius:14px;
       font-size:13px;
     }
-    .error{
-      position:absolute; inset:12px;
-      background:#fff1f1;
-      border:2px solid #ffb3b3;
-      border-radius:14px;
-      padding:12px;
-      display:none;
-      white-space:pre-wrap;
-      overflow:auto;
+
+    .chipRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .chip{
+      font-size:12px;
+      padding:8px 10px;
+      border-radius:999px;
+      background:#ffffff;
+      border:2px solid rgba(27,33,80,.10);
+      box-shadow: 0 8px 14px rgba(0,0,0,.06);
+      user-select:none;
     }
+
     @media (max-width: 900px){
       .wrap{ grid-template-columns: 1fr; height:auto; }
       .canvas{ height: 65vh; }
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="panel">
       <h1>🧊 Cube → Net Explorer</h1>
       <p>
-        Drag the slider to open the cube into a net.
+        Click <b>Show Cube</b>. Drag the slider to open the cube into a net.
         Drag your mouse on the right to rotate it.
       </p>
 
@@ -101,57 +117,43 @@
         <p class="small">0 = folded cube • 100 = flat net</p>
       </div>
 
+      <div class="chipRow" aria-hidden="true">
+        <div class="chip">👆 Drag to rotate</div>
+        <div class="chip">🖱️ Scroll to zoom</div>
+        <div class="chip">🎚️ Slider opens net</div>
+      </div>
+
       <p class="small">
-        If you can’t see anything, make sure you’re viewing it on GitHub Pages (not by double-clicking the file).
+        Tip: Put this file as <b>index.html</b> in your repo root, then enable <b>GitHub Pages</b>.
       </p>
     </div>
 
     <div class="canvas" id="view">
       <div class="hint">Mouse: drag to rotate • Scroll: zoom</div>
-      <div class="error" id="errBox"></div>
     </div>
   </div>
 
   <script type="module">
-    const errBox = document.getElementById("errBox");
-    function showError(msg){
-      errBox.style.display = "block";
-      errBox.textContent =
-`⚠️ I couldn’t load the 3D libraries.
-
-Most likely cause:
-• You opened the file directly (file://...) instead of using GitHub Pages or a local server.
-
-Fix:
-• Use GitHub Pages OR run a local server (VS Code → Live Server).
-
-Details:
-${msg}`;
-    }
-
-    let THREE, OrbitControls;
-    try{
-      THREE = await import("https://unpkg.com/three@0.160.0/build/three.module.js");
-      ({ OrbitControls } = await import("https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js"));
-    }catch(e){
-      showError(String(e));
-      throw e;
-    }
+    import * as THREE from "three";
+    import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
     const container = document.getElementById("view");
     const btnCube = document.getElementById("btnCube");
     const slider = document.getElementById("openSlider");
 
-    // Scene
+    // --- Scene ---
     const scene = new THREE.Scene();
 
+    // --- Camera ---
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(3.4, 2.4, 4.6);
 
+    // --- Renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
+    // --- Controls ---
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
@@ -159,18 +161,20 @@ ${msg}`;
     controls.maxDistance = 12;
     controls.target.set(0.5, 0.1, 0);
 
-    // Friendly bright lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+    // --- Lights (bright & friendly) ---
+    scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.15);
     dir.position.set(5, 7, 4);
     scene.add(dir);
+    const hemi = new THREE.HemisphereLight(0xbad1ff, 0xffffff, 0.7);
+    scene.add(hemi);
 
-    // A subtle floor grid for “orientation”
+    // Soft grid for orientation (optional)
     const grid = new THREE.GridHelper(10, 10, 0x9db6ff, 0xdfe9ff);
     grid.position.y = -1.2;
     scene.add(grid);
 
-    // Root group
+    // --- Cube/Net Build ---
     const root = new THREE.Group();
     scene.add(root);
 
@@ -178,7 +182,7 @@ ${msg}`;
     const half = size / 2;
 
     // Kid-friendly colors per face
-    const colors = {
+    const COLORS = {
       center: 0x6ea8ff,
       right:  0xff8b8b,
       left:   0x8bffb0,
@@ -195,74 +199,98 @@ ${msg}`;
         metalness: 0.05,
         side: THREE.DoubleSide
       });
-
       const mesh = new THREE.Mesh(geom, mat);
 
+      // Outline for clarity
       const edges = new THREE.EdgesGeometry(geom);
-      const line = new THREE.LineSegments(
+      const outline = new THREE.LineSegments(
         edges,
         new THREE.LineBasicMaterial({ color: 0x1b2150, transparent:true, opacity:0.55 })
       );
-      mesh.add(line);
+      mesh.add(outline);
 
       return mesh;
     }
 
-    // Hinge helper
-    function hingedFace(parentPivot, color, hingeAxis, hingeEdgeOffsetVec3, faceOffsetVec3){
+    // Hinge helper:
+    // parentPivot: group to attach to
+    // hingeEdgeOffset: where the hinge is located (pivot position)
+    // faceOffset: where the face sits relative to the pivot
+    function hingedFace(parentPivot, color, hingeEdgeOffset, faceOffset){
       const pivot = new THREE.Group();
-      pivot.position.copy(hingeEdgeOffsetVec3);
+      pivot.position.copy(hingeEdgeOffset);
       parentPivot.add(pivot);
 
       const face = makeFace(color);
-      face.position.copy(faceOffsetVec3);
+      face.position.copy(faceOffset);
       pivot.add(face);
 
-      return { pivot, hingeAxis };
+      return pivot;
     }
 
+    // Net layout:
+    //      Top
+    // Left Center Right Back
+    //     Bottom
     const centerPivot = new THREE.Group();
     root.add(centerPivot);
-    centerPivot.add(makeFace(colors.center));
+    centerPivot.add(makeFace(COLORS.center));
 
-    // Net layout:
-    //    Top
-    // Left Center Right Back
-    //   Bottom
-    const right = hingedFace(centerPivot, colors.right, "y",
-      new THREE.Vector3( half, 0, 0), new THREE.Vector3( half, 0, 0));
+    const rightPivot = hingedFace(
+      centerPivot, COLORS.right,
+      new THREE.Vector3( half, 0, 0),
+      new THREE.Vector3( half, 0, 0)
+    );
 
-    const left = hingedFace(centerPivot, colors.left, "y",
-      new THREE.Vector3(-half, 0, 0), new THREE.Vector3(-half, 0, 0));
+    const leftPivot = hingedFace(
+      centerPivot, COLORS.left,
+      new THREE.Vector3(-half, 0, 0),
+      new THREE.Vector3(-half, 0, 0)
+    );
 
-    const top = hingedFace(centerPivot, colors.top, "x",
-      new THREE.Vector3(0,  half, 0), new THREE.Vector3(0,  half, 0));
+    const topPivot = hingedFace(
+      centerPivot, COLORS.top,
+      new THREE.Vector3(0,  half, 0),
+      new THREE.Vector3(0,  half, 0)
+    );
 
-    const bottom = hingedFace(centerPivot, colors.bottom, "x",
-      new THREE.Vector3(0, -half, 0), new THREE.Vector3(0, -half, 0));
+    const bottomPivot = hingedFace(
+      centerPivot, COLORS.bottom,
+      new THREE.Vector3(0, -half, 0),
+      new THREE.Vector3(0, -half, 0)
+    );
 
-    const back = hingedFace(right.pivot, colors.back, "y",
-      new THREE.Vector3(size, 0, 0), new THREE.Vector3(half, 0, 0));
+    const backPivot = hingedFace(
+      rightPivot, COLORS.back,
+      new THREE.Vector3(size, 0, 0),
+      new THREE.Vector3(half, 0, 0)
+    );
 
     root.rotation.x = -0.18;
     root.rotation.y = 0.35;
 
-    // Slider → fold/unfold
+    // Slider drives fold/unfold:
+    // s=0 folded (90°), s=1 flat (0°)
     function applyOpenAmount(s){
-      // s=0 folded (90°), s=1 flat (0°)
       const a = (1 - s) * (Math.PI / 2);
 
-      right.pivot.rotation.y  = -a;
-      left.pivot.rotation.y   =  a;
-      top.pivot.rotation.x    =  a;
-      bottom.pivot.rotation.x = -a;
-      back.pivot.rotation.y   = -a;
+      // Right/Left fold around Y axis
+      rightPivot.rotation.y  = -a;
+      leftPivot.rotation.y   =  a;
+
+      // Top/Bottom fold around X axis
+      topPivot.rotation.x    =  a;
+      bottomPivot.rotation.x = -a;
+
+      // Back folds too
+      backPivot.rotation.y   = -a;
     }
 
-    // Show cube
     function showCube(){
       slider.value = "0";
       applyOpenAmount(0);
+      camera.position.set(3.4, 2.4, 4.6);
+      controls.target.set(0.5, 0.1, 0);
       controls.update();
     }
 
@@ -273,7 +301,7 @@ ${msg}`;
       applyOpenAmount(s);
     });
 
-    // Resize (very important)
+    // --- Resize (critical) ---
     function onResize(){
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -284,9 +312,10 @@ ${msg}`;
     window.addEventListener("resize", onResize);
     onResize();
 
-    // Start with cube visible immediately (kid-friendly)
+    // Start with cube shown (kids don't need to troubleshoot)
     showCube();
 
+    // --- Animate ---
     function tick(){
       controls.update();
       renderer.render(scene, camera);
