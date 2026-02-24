@@ -1,327 +1,305 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cube → Net Explorer (Kids)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>3D Shape Net Explorer</title>
 
-  <!-- ✅ Import map fixes: "Failed to resolve module specifier 'three'" -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/": "https://unpkg.com/three@0.160.0/"
-    }
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/": "https://unpkg.com/three@0.160.0/"
   }
-  </script>
+}
+</script>
 
-  <style>
-    :root{
-      --ink:#1b2150;
-      --panel:#ffffffd6;
-      --shadow: 0 12px 30px rgba(0,0,0,.12);
-    }
-    *{ box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body{
-      margin:0;
-      color: var(--ink);
-      background: linear-gradient(135deg, #ffe6ff 0%, #e6f6ff 30%, #eaffef 60%, #fff5dc 100%);
-    }
-    .wrap{
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap:16px;
-      height:100vh;
-      padding:16px;
-    }
-    .panel{
-      background: var(--panel);
-      border: 2px solid rgba(27,33,80,.10);
-      border-radius:18px;
-      padding:16px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(6px);
-    }
-    h1{ font-size:20px; margin:0 0 8px; }
-    p{ margin:8px 0; line-height:1.35; }
-    .btn{
-      width:100%;
-      padding:12px 14px;
-      border-radius:14px;
-      border: 2px solid rgba(27,33,80,.15);
-      background: linear-gradient(135deg, #6ea8ff, #8bffb0);
-      color:#062046;
-      font-weight:900;
-      cursor:pointer;
-      transition:.12s transform;
-      box-shadow: 0 10px 18px rgba(35,80,170,.18);
-    }
-    .btn:hover{ transform: translateY(-1px); }
-    .row{ margin-top:14px; }
-    label{ display:block; font-weight:900; margin-bottom:8px; }
-    input[type="range"]{ width:100%; }
-    .small{ font-size:12px; opacity:.85; }
+<style>
 
-    .canvas{
-      background: radial-gradient(circle at 20% 10%, #ffffff 0%, #f6fbff 35%, #f2fff7 70%, #fffaf0 100%);
-      border: 2px solid rgba(27,33,80,.10);
-      border-radius:18px;
-      overflow:hidden;
-      position:relative;
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#ffe6ff,#e6f6ff,#eaffef,#fff5dc);
+}
 
-      /* ✅ Give a real height so the renderer shows */
-      height: calc(100vh - 32px);
-      box-shadow: var(--shadow);
-    }
-    .hint{
-      position:absolute; left:12px; bottom:12px;
-      background:#ffffffdd;
-      border:2px solid rgba(27,33,80,.10);
-      padding:10px 12px;
-      border-radius:14px;
-      font-size:13px;
-    }
+.wrap{
+display:grid;
+grid-template-columns:320px 1fr;
+height:100vh;
+padding:16px;
+gap:16px;
+}
 
-    .chipRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .chip{
-      font-size:12px;
-      padding:8px 10px;
-      border-radius:999px;
-      background:#ffffff;
-      border:2px solid rgba(27,33,80,.10);
-      box-shadow: 0 8px 14px rgba(0,0,0,.06);
-      user-select:none;
-    }
+.panel{
+background:white;
+padding:16px;
+border-radius:16px;
+}
 
-    @media (max-width: 900px){
-      .wrap{ grid-template-columns: 1fr; height:auto; }
-      .canvas{ height: 65vh; }
-    }
-  </style>
+button{
+width:100%;
+padding:12px;
+margin-top:10px;
+font-size:18px;
+border-radius:12px;
+border:none;
+background:linear-gradient(135deg,#6ea8ff,#8bffb0);
+cursor:pointer;
+}
+
+.canvas{
+background:white;
+border-radius:16px;
+height:100%;
+}
+
+</style>
+
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="panel">
-      <h1>🧊 Cube → Net Explorer</h1>
-      <p>
-        Click <b>Show Cube</b>. Drag the slider to open the cube into a net.
-        Drag your mouse on the right to rotate it.
-      </p>
 
-      <button id="btnCube" class="btn">Show Cube</button>
+<div class="wrap">
 
-      <div class="row">
-        <label for="openSlider">Open the cube</label>
-        <input id="openSlider" type="range" min="0" max="100" value="0" />
-        <p class="small">0 = folded cube • 100 = flat net</p>
-      </div>
+<div class="panel">
 
-      <div class="chipRow" aria-hidden="true">
-        <div class="chip">👆 Drag to rotate</div>
-        <div class="chip">🖱️ Scroll to zoom</div>
-        <div class="chip">🎚️ Slider opens net</div>
-      </div>
+<h2>Shape Net Explorer</h2>
 
-      <p class="small">
-        Tip: Put this file as <b>index.html</b> in your repo root, then enable <b>GitHub Pages</b>.
-      </p>
-    </div>
+<button id="cubeBtn">Cube</button>
 
-    <div class="canvas" id="view">
-      <div class="hint">Mouse: drag to rotate • Scroll: zoom</div>
-    </div>
-  </div>
+<button id="pyramidBtn">Pyramid</button>
 
-  <script type="module">
-    import * as THREE from "three";
-    import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+<br><br>
 
-    const container = document.getElementById("view");
-    const btnCube = document.getElementById("btnCube");
-    const slider = document.getElementById("openSlider");
+Open shape:
 
-    // --- Scene ---
-    const scene = new THREE.Scene();
+<input id="slider" type="range" min="0" max="100" value="0">
 
-    // --- Camera ---
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.set(3.4, 2.4, 4.6);
+</div>
 
-    // --- Renderer ---
-    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+<div id="view" class="canvas"></div>
 
-    // --- Controls ---
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minDistance = 2.2;
-    controls.maxDistance = 12;
-    controls.target.set(0.5, 0.1, 0);
+</div>
 
-    // --- Lights (bright & friendly) ---
-    scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-    const dir = new THREE.DirectionalLight(0xffffff, 1.15);
-    dir.position.set(5, 7, 4);
-    scene.add(dir);
-    const hemi = new THREE.HemisphereLight(0xbad1ff, 0xffffff, 0.7);
-    scene.add(hemi);
 
-    // Soft grid for orientation (optional)
-    const grid = new THREE.GridHelper(10, 10, 0x9db6ff, 0xdfe9ff);
-    grid.position.y = -1.2;
-    scene.add(grid);
+<script type="module">
 
-    // --- Cube/Net Build ---
-    const root = new THREE.Group();
-    scene.add(root);
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-    const size = 1;
-    const half = size / 2;
+const container=document.getElementById("view");
+const slider=document.getElementById("slider");
 
-    // Kid-friendly colors per face
-    const COLORS = {
-      center: 0x6ea8ff,
-      right:  0xff8b8b,
-      left:   0x8bffb0,
-      top:    0xffe08b,
-      bottom: 0xc78bff,
-      back:   0x8be6ff
-    };
+const scene=new THREE.Scene();
 
-    function makeFace(colorHex){
-      const geom = new THREE.PlaneGeometry(size, size);
-      const mat = new THREE.MeshStandardMaterial({
-        color: colorHex,
-        roughness: 0.35,
-        metalness: 0.05,
-        side: THREE.DoubleSide
-      });
-      const mesh = new THREE.Mesh(geom, mat);
+const camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+camera.position.set(4,3,5);
 
-      // Outline for clarity
-      const edges = new THREE.EdgesGeometry(geom);
-      const outline = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: 0x1b2150, transparent:true, opacity:0.55 })
-      );
-      mesh.add(outline);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+container.appendChild(renderer.domElement);
 
-      return mesh;
-    }
+const controls=new OrbitControls(camera,renderer.domElement);
 
-    // Hinge helper:
-    // parentPivot: group to attach to
-    // hingeEdgeOffset: where the hinge is located (pivot position)
-    // faceOffset: where the face sits relative to the pivot
-    function hingedFace(parentPivot, color, hingeEdgeOffset, faceOffset){
-      const pivot = new THREE.Group();
-      pivot.position.copy(hingeEdgeOffset);
-      parentPivot.add(pivot);
+scene.add(new THREE.AmbientLight(0xffffff,1));
 
-      const face = makeFace(color);
-      face.position.copy(faceOffset);
-      pivot.add(face);
+const light=new THREE.DirectionalLight(0xffffff,1);
+light.position.set(5,10,5);
+scene.add(light);
 
-      return pivot;
-    }
+let root=new THREE.Group();
+scene.add(root);
 
-    // Net layout:
-    //      Top
-    // Left Center Right Back
-    //     Bottom
-    const centerPivot = new THREE.Group();
-    root.add(centerPivot);
-    centerPivot.add(makeFace(COLORS.center));
+let currentShape="cube";
 
-    const rightPivot = hingedFace(
-      centerPivot, COLORS.right,
-      new THREE.Vector3( half, 0, 0),
-      new THREE.Vector3( half, 0, 0)
-    );
+function clearShape(){
 
-    const leftPivot = hingedFace(
-      centerPivot, COLORS.left,
-      new THREE.Vector3(-half, 0, 0),
-      new THREE.Vector3(-half, 0, 0)
-    );
+scene.remove(root);
 
-    const topPivot = hingedFace(
-      centerPivot, COLORS.top,
-      new THREE.Vector3(0,  half, 0),
-      new THREE.Vector3(0,  half, 0)
-    );
+root=new THREE.Group();
 
-    const bottomPivot = hingedFace(
-      centerPivot, COLORS.bottom,
-      new THREE.Vector3(0, -half, 0),
-      new THREE.Vector3(0, -half, 0)
-    );
+scene.add(root);
 
-    const backPivot = hingedFace(
-      rightPivot, COLORS.back,
-      new THREE.Vector3(size, 0, 0),
-      new THREE.Vector3(half, 0, 0)
-    );
+}
 
-    root.rotation.x = -0.18;
-    root.rotation.y = 0.35;
 
-    // Slider drives fold/unfold:
-    // s=0 folded (90°), s=1 flat (0°)
-    function applyOpenAmount(s){
-      const a = (1 - s) * (Math.PI / 2);
+function createFace(color){
 
-      // Right/Left fold around Y axis
-      rightPivot.rotation.y  = -a;
-      leftPivot.rotation.y   =  a;
+const geo=new THREE.PlaneGeometry(1,1);
 
-      // Top/Bottom fold around X axis
-      topPivot.rotation.x    =  a;
-      bottomPivot.rotation.x = -a;
+const mat=new THREE.MeshStandardMaterial({
+color:color,
+side:THREE.DoubleSide
+});
 
-      // Back folds too
-      backPivot.rotation.y   = -a;
-    }
+return new THREE.Mesh(geo,mat);
 
-    function showCube(){
-      slider.value = "0";
-      applyOpenAmount(0);
-      camera.position.set(3.4, 2.4, 4.6);
-      controls.target.set(0.5, 0.1, 0);
-      controls.update();
-    }
+}
 
-    btnCube.addEventListener("click", showCube);
 
-    slider.addEventListener("input", () => {
-      const s = Number(slider.value) / 100;
-      applyOpenAmount(s);
-    });
+function buildCube(){
 
-    // --- Resize (critical) ---
-    function onResize(){
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-    }
-    window.addEventListener("resize", onResize);
-    onResize();
+clearShape();
 
-    // Start with cube shown (kids don't need to troubleshoot)
-    showCube();
+const center=new THREE.Group();
+root.add(center);
 
-    // --- Animate ---
-    function tick(){
-      controls.update();
-      renderer.render(scene, camera);
-      requestAnimationFrame(tick);
-    }
-    tick();
-  </script>
+center.add(createFace(0x6ea8ff));
+
+const right=new THREE.Group();
+right.position.x=0.5;
+right.add(createFace(0xff8b8b));
+center.add(right);
+
+const left=new THREE.Group();
+left.position.x=-0.5;
+left.add(createFace(0x8bffb0));
+center.add(left);
+
+const top=new THREE.Group();
+top.position.y=0.5;
+top.add(createFace(0xffe08b));
+center.add(top);
+
+const bottom=new THREE.Group();
+bottom.position.y=-0.5;
+bottom.add(createFace(0xc78bff));
+center.add(bottom);
+
+const back=new THREE.Group();
+back.position.x=1;
+back.add(createFace(0x8be6ff));
+right.add(back);
+
+root.userData={center,right,left,top,bottom,back};
+
+}
+
+
+
+function buildPyramid(){
+
+clearShape();
+
+const base=new THREE.Group();
+root.add(base);
+
+base.add(createFace(0x6ea8ff));
+
+
+const side1=new THREE.Group();
+side1.position.y=0.5;
+side1.add(createFace(0xff8b8b));
+base.add(side1);
+
+const side2=new THREE.Group();
+side2.position.y=-0.5;
+side2.add(createFace(0x8bffb0));
+base.add(side2);
+
+const side3=new THREE.Group();
+side3.position.x=0.5;
+side3.add(createFace(0xffe08b));
+base.add(side3);
+
+const side4=new THREE.Group();
+side4.position.x=-0.5;
+side4.add(createFace(0xc78bff));
+base.add(side4);
+
+root.userData={side1,side2,side3,side4};
+
+}
+
+
+function openShape(value){
+
+const s=value/100;
+
+if(currentShape=="cube"){
+
+const a=(1-s)*Math.PI/2;
+
+root.userData.right.rotation.y=-a;
+root.userData.left.rotation.y=a;
+root.userData.top.rotation.x=a;
+root.userData.bottom.rotation.x=-a;
+root.userData.back.rotation.y=-a;
+
+}
+
+if(currentShape=="pyramid"){
+
+const a=(1-s)*Math.PI/2;
+
+root.userData.side1.rotation.x=a;
+root.userData.side2.rotation.x=-a;
+root.userData.side3.rotation.y=-a;
+root.userData.side4.rotation.y=a;
+
+}
+
+}
+
+
+document.getElementById("cubeBtn").onclick=()=>{
+
+currentShape="cube";
+
+buildCube();
+
+openShape(slider.value);
+
+}
+
+document.getElementById("pyramidBtn").onclick=()=>{
+
+currentShape="pyramid";
+
+buildPyramid();
+
+openShape(slider.value);
+
+}
+
+slider.oninput=()=>{
+
+openShape(slider.value);
+
+}
+
+
+
+function resize(){
+
+const w=container.clientWidth;
+const h=container.clientHeight;
+
+renderer.setSize(w,h);
+
+camera.aspect=w/h;
+
+camera.updateProjectionMatrix();
+
+}
+
+window.onresize=resize;
+
+resize();
+
+
+buildCube();
+
+function animate(){
+
+renderer.render(scene,camera);
+
+requestAnimationFrame(animate);
+
+}
+
+animate();
+
+</script>
+
 </body>
 </html>
