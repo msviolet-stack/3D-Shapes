@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cube → Net Explorer</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#111a33; --text:#e9eefc; --muted:#b7c2e6; }
+    *{ box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body{ margin:0; background:linear-gradient(180deg,#070b18,#0b1020); color:var(--text); }
+    .wrap{
+      display:grid; grid-template-columns: 360px 1fr; gap:16px;
+      height:100vh; padding:16px;
+    }
+    .panel{
+      background:rgba(17,26,51,.85);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px; padding:16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    h1{ font-size:20px; margin:0 0 8px; }
+    p{ margin:8px 0; color:var(--muted); line-height:1.35; }
+    .btn{
+      width:100%; padding:12px 14px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.10);
+      color:var(--text); font-weight:700; cursor:pointer;
+      transition:.15s transform, .15s background;
+    }
+    .btn:hover{ background:rgba(255,255,255,.14); transform:translateY(-1px); }
+    .row{ margin-top:14px; }
+    label{ display:block; font-weight:700; margin-bottom:8px; }
+    input[type="range"]{ width:100%; }
+    .small{ font-size:12px; color:var(--muted); }
+    .canvas{
+      background:rgba(17,26,51,.35);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      overflow:hidden;
+      position:relative;
+      min-height: 360px;
+    }
+    .hint{
+      position:absolute; left:12px; bottom:12px;
+      background:rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      padding:10px 12px; border-radius:12px;
+      color:var(--text);
+      font-size:13px;
+      backdrop-filter: blur(6px);
+    }
+    @media (max-width: 900px){
+      .wrap{ grid-template-columns: 1fr; height:auto; }
+      .canvas{ height: 65vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Cube → Net Explorer</h1>
+      <p>
+        Click <b>Cube</b> to show a 3D cube. Then drag the slider to “open” it into a net.
+        Drag your mouse on the right to rotate the shape.
+      </p>
+
+      <button id="btnCube" class="btn">🧊 Cube</button>
+
+      <div class="row">
+        <label for="openSlider">Open the cube</label>
+        <input id="openSlider" type="range" min="0" max="100" value="0" disabled />
+        <p class="small">
+          0 = folded cube • 100 = fully opened net
+        </p>
+      </div>
+
+      <div class="row">
+        <p class="small">
+          Teaching idea: Ask students to count the faces, edges, and vertices while moving the slider.
+        </p>
+      </div>
+    </div>
+
+    <div class="canvas" id="view">
+      <div class="hint">Mouse: drag to rotate • Scroll: zoom</div>
+    </div>
+  </div>
+
+  <!-- Three.js + Controls (CDN) -->
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+    const container = document.getElementById("view");
+    const btnCube = document.getElementById("btnCube");
+    const slider = document.getElementById("openSlider");
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0b1020, 6, 18);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(3.6, 2.6, 4.6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 2.5;
+    controls.maxDistance = 12;
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(4, 6, 3);
+    scene.add(dir);
+
+    // Ground-ish helper light
+    const hemi = new THREE.HemisphereLight(0x9db6ff, 0x10162d, 0.6);
+    scene.add(hemi);
+
+    // Group that will contain cube/net
+    const root = new THREE.Group();
+    root.visible = false;
+    scene.add(root);
+
+    // Build a "hinged" cube net using 6 faces (planes) with pivot groups
+    const size = 1;                 // face width/height
+    const half = size / 2;
+    const thicknessVisual = 0.02;   // tiny thickness illusion via edge lines
+
+    // Face material (bright + kid-friendly)
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0x6ea8ff,
+      roughness: 0.35,
+      metalness: 0.05,
+      side: THREE.DoubleSide
+    });
+
+    function makeFace(colorHex){
+      const geom = new THREE.PlaneGeometry(size, size);
+      const mat = faceMat.clone();
+      mat.color.setHex(colorHex);
+      const mesh = new THREE.Mesh(geom, mat);
+
+      // Add outline for clarity
+      const edges = new THREE.EdgesGeometry(geom);
+      const line = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.9 })
+      );
+      mesh.add(line);
+
+      // Lift slightly so outlines don't Z-fight when folded
+      mesh.position.z = thicknessVisual;
+      return mesh;
+    }
+
+    // Pivots (so each face can rotate around an edge)
+    // Center face is fixed; others hinge off it.
+    const centerPivot = new THREE.Group();
+    root.add(centerPivot);
+
+    const faceCenter = makeFace(0x6ea8ff); // center
+    centerPivot.add(faceCenter);
+
+    // Helper: create a hinged face attached to a parent pivot
+    // hingeAxis: "x" or "y"
+    // hingeEdgeOffset: where the hinge is, relative to the face center
+    function hingedFace(parentPivot, color, hingeAxis, hingeEdgeOffsetVec3, faceOffsetVec3){
+      const pivot = new THREE.Group();
+      pivot.position.copy(hingeEdgeOffsetVec3); // pivot located on the hinge edge
+      parentPivot.add(pivot);
+
+      const face = makeFace(color);
+      face.position.copy(faceOffsetVec3); // move face so its edge sits on pivot
+      pivot.add(face);
+
+      return { pivot, face, hingeAxis };
+    }
+
+    // Layout:
+    //   [Top]
+    // [Left][Center][Right][Back]
+    //   [Bottom]
+    //
+    // When fully opened: all faces lie in the same plane (no folding)
+    // When folded: faces rotate up to form cube (90 degrees)
+
+    // Center face lies in XY plane. We'll fold around its edges.
+    // Right face: hinge on +X edge of center
+    const right = hingedFace(
+      centerPivot,
+      0xff8b8b,
+      "y",
+      new THREE.Vector3( half, 0, 0),
+      new THREE.Vector3( half, 0, 0)
+    );
+
+    // Left face: hinge on -X edge
+    const left = hingedFace(
+      centerPivot,
+      0x8bffb0,
+      "y",
+      new THREE.Vector3(-half, 0, 0),
+      new THREE.Vector3(-half, 0, 0)
+    );
+
+    // Top face: hinge on +Y edge
+    const top = hingedFace(
+      centerPivot,
+      0xffe08b,
+      "x",
+      new THREE.Vector3(0,  half, 0),
+      new THREE.Vector3(0,  half, 0)
+    );
+
+    // Bottom face: hinge on -Y edge
+    const bottom = hingedFace(
+      centerPivot,
+      0xc78bff,
+      "x",
+      new THREE.Vector3(0, -half, 0),
+      new THREE.Vector3(0, -half, 0)
+    );
+
+    // Back face: hinge off the RIGHT face (like a common net)
+    // hinge edge is +X edge of the right face (in its local coordinates)
+    const back = hingedFace(
+      right.pivot,
+      0x8be6ff,
+      "y",
+      new THREE.Vector3( size, 0, 0),     // pivot one face-width away from center pivot along +X
+      new THREE.Vector3( half, 0, 0)      // face centered so its left edge touches the pivot
+    );
+
+    // Give a little tilt to start view nicely
+    root.rotation.x = -0.2;
+    root.rotation.y = 0.35;
+
+    // Slider controls folding amount:
+    // s = 0 (folded cube) -> angle = 90deg
+    // s = 1 (flat net)    -> angle = 0deg
+    function applyOpenAmount(s){
+      const a = (1 - s) * (Math.PI / 2);
+
+      // Center stays flat.
+      // Right/Left fold around Y. Top/Bottom fold around X.
+      right.pivot.rotation.y = -a;  // fold inward
+      left.pivot.rotation.y  =  a;
+      top.pivot.rotation.x   =  a;
+      bottom.pivot.rotation.x= -a;
+
+      // Back face folds as part of cube closure (it should fold too)
+      back.pivot.rotation.y  = -a;
+
+      // Small vertical lift to reduce overlap when flat (kid clarity)
+      const lift = 0.0 + 0.02 * s;
+      centerPivot.position.z = lift;
+    }
+
+    applyOpenAmount(0);
+
+    // Button behavior
+    btnCube.addEventListener("click", () => {
+      root.visible = true;
+      slider.disabled = false;
+      slider.value = "0";
+      applyOpenAmount(0);
+
+      // Focus camera a bit
+      camera.position.set(3.6, 2.6, 4.6);
+      controls.target.set(0.5, 0.1, 0);
+      controls.update();
+    });
+
+    // Slider behavior
+    slider.addEventListener("input", () => {
+      const s = Number(slider.value) / 100;
+      applyOpenAmount(s);
+    });
+
+    // Resize
+    function onResize(){
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", onResize);
+    onResize();
+
+    // Animate
+    function tick(){
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>
