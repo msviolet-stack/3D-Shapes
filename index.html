@@ -1,40 +1,387 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>3D Shape Net Explorer</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shape Net Explorer: Cube & Pyramid</title>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/": "https://unpkg.com/three@0.160.0/"
+  <!-- Fixes: "Failed to resolve module specifier 'three'" -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/": "https://unpkg.com/three@0.160.0/"
+    }
   }
-}
+  </script>
+
+  <style>
+    :root{
+      --ink:#1b2150;
+      --panel:#ffffffd6;
+      --shadow: 0 14px 34px rgba(0,0,0,.12);
+    }
+    *{ box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body{
+      margin:0;
+      color: var(--ink);
+      background: linear-gradient(135deg, #ffe6ff 0%, #e6f6ff 30%, #eaffef 60%, #fff5dc 100%);
+    }
+    .wrap{
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      gap:16px;
+      height:100vh;
+      padding:16px;
+    }
+    .panel{
+      background: var(--panel);
+      border: 2px solid rgba(27,33,80,.10);
+      border-radius:18px;
+      padding:16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+    h1{ font-size:20px; margin:0 0 8px; }
+    p{ margin:8px 0; line-height:1.35; }
+    .btnRow{ display:flex; gap:10px; margin-top:10px; }
+    button{
+      flex:1;
+      padding:12px 10px;
+      font-size:16px;
+      font-weight:900;
+      border-radius:14px;
+      border: 2px solid rgba(27,33,80,.14);
+      cursor:pointer;
+      color:#062046;
+      box-shadow: 0 10px 18px rgba(35,80,170,.14);
+      transition:.12s transform;
+    }
+    button:hover{ transform: translateY(-1px); }
+    #cubeBtn{ background: linear-gradient(135deg, #6ea8ff, #8be6ff); }
+    #pyrBtn { background: linear-gradient(135deg, #8bffb0, #ffe08b); }
+
+    .row{ margin-top:14px; }
+    label{ display:block; font-weight:900; margin-bottom:8px; }
+    input[type="range"]{ width:100%; }
+    .small{ font-size:12px; opacity:.85; }
+
+    .canvas{
+      background: radial-gradient(circle at 20% 10%, #ffffff 0%, #f6fbff 35%, #f2fff7 70%, #fffaf0 100%);
+      border: 2px solid rgba(27,33,80,.10);
+      border-radius:18px;
+      overflow:hidden;
+      position:relative;
+      height: calc(100vh - 32px);
+      box-shadow: var(--shadow);
+    }
+    .hint{
+      position:absolute; left:12px; bottom:12px;
+      background:#ffffffdd;
+      border:2px solid rgba(27,33,80,.10);
+      padding:10px 12px;
+      border-radius:14px;
+      font-size:13px;
+    }
+
+    @media (max-width: 900px){
+      .wrap{ grid-template-columns: 1fr; height:auto; }
+      .canvas{ height: 65vh; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>🧊 Shape Net Explorer</h1>
+      <p>Choose a shape. Drag the slider to open it into a net. Drag on the right to rotate.</p>
+
+      <div class="btnRow">
+        <button id="cubeBtn">Cube</button>
+        <button id="pyrBtn">Pyramid</button>
+      </div>
+
+      <div class="row">
+        <label for="slider">Open the shape</label>
+        <input id="slider" type="range" min="0" max="100" value="0" />
+        <div class="small">0 = folded 3D shape • 100 = flat net</div>
+      </div>
+
+      <div class="small" style="margin-top:10px;">
+        Tip for kids: Rotate and find the <b>base</b> and the <b>faces</b>.
+      </div>
+    </div>
+
+    <div id="view" class="canvas">
+      <div class="hint">Mouse: drag to rotate • Scroll: zoom</div>
+    </div>
+  </div>
+
+<script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+  const container = document.getElementById("view");
+  const slider = document.getElementById("slider");
+  const cubeBtn = document.getElementById("cubeBtn");
+  const pyrBtn  = document.getElementById("pyrBtn");
+
+  // --- Scene / Camera / Renderer ---
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(4, 3, 5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0); // ✅ transparent clear (no black)
+  container.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 2.2;
+  controls.maxDistance = 12;
+  controls.target.set(0, 0, 0);
+
+  // Bright friendly lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.15);
+  dir.position.set(5, 7, 4);
+  scene.add(dir);
+  const hemi = new THREE.HemisphereLight(0xbad1ff, 0xffffff, 0.7);
+  scene.add(hemi);
+
+  // A gentle orientation grid
+  const grid = new THREE.GridHelper(10, 10, 0x9db6ff, 0xdfe9ff);
+  grid.position.y = -1.2;
+  scene.add(grid);
+
+  // --- Helpers ---
+  function outline(mesh, color=0x1b2150, opacity=0.55){
+    const edges = new THREE.EdgesGeometry(mesh.geometry);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color, transparent:true, opacity }));
+    mesh.add(line);
+    return mesh;
+  }
+
+  function squareFace(colorHex, size=1){
+    const geom = new THREE.PlaneGeometry(size, size);
+    const mat = new THREE.MeshStandardMaterial({ color: colorHex, side: THREE.DoubleSide, roughness:0.35, metalness:0.05 });
+    return outline(new THREE.Mesh(geom, mat));
+  }
+
+  // Triangle in XY plane with base on y=0 from x=-0.5..+0.5, apex at (0, height)
+  function triFace(colorHex, base=1, height=0.9){
+    const hw = base/2;
+    const positions = new Float32Array([
+      -hw, 0, 0,
+       hw, 0, 0,
+       0,  height, 0
+    ]);
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geom.setIndex([0,1,2]);
+    geom.computeVertexNormals();
+
+    const mat = new THREE.MeshStandardMaterial({ color: colorHex, side: THREE.DoubleSide, roughness:0.35, metalness:0.05 });
+    return outline(new THREE.Mesh(geom, mat));
+  }
+
+  // Root holder for current shape
+  let root = new THREE.Group();
+  scene.add(root);
+
+  function clearShape(){
+    scene.remove(root);
+    root.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose?.();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach(m=>m.dispose?.());
+        else obj.material.dispose?.();
+      }
+    });
+    root = new THREE.Group();
+    scene.add(root);
+  }
+
+  // --- Build Cube (net that folds) ---
+  function buildCube(){
+    clearShape();
+
+    const size = 1;
+    const half = size/2;
+
+    const centerPivot = new THREE.Group();
+    root.add(centerPivot);
+    centerPivot.add(squareFace(0x6ea8ff, size));
+
+    function hingedSquare(parent, color, hingePos, facePos){
+      const pivot = new THREE.Group();
+      pivot.position.copy(hingePos);
+      parent.add(pivot);
+      const face = squareFace(color, size);
+      face.position.copy(facePos);
+      pivot.add(face);
+      return pivot;
+    }
+
+    const rightPivot = hingedSquare(centerPivot, 0xff8b8b, new THREE.Vector3( half, 0, 0), new THREE.Vector3( half, 0, 0));
+    const leftPivot  = hingedSquare(centerPivot, 0x8bffb0, new THREE.Vector3(-half, 0, 0), new THREE.Vector3(-half, 0, 0));
+    const topPivot   = hingedSquare(centerPivot, 0xffe08b, new THREE.Vector3(0,  half, 0), new THREE.Vector3(0,  half, 0));
+    const botPivot   = hingedSquare(centerPivot, 0xc78bff, new THREE.Vector3(0, -half, 0), new THREE.Vector3(0, -half, 0));
+    const backPivot  = hingedSquare(rightPivot,  0x8be6ff, new THREE.Vector3(size, 0, 0),  new THREE.Vector3(half, 0, 0));
+
+    root.userData = { kind:"cube", rightPivot, leftPivot, topPivot, botPivot, backPivot };
+
+    root.rotation.set(-0.18, 0.35, 0);
+    controls.target.set(0.5, 0.1, 0);
+  }
+
+  // --- Build Square Pyramid (real net) ---
+  function buildPyramid(){
+    clearShape();
+
+    const baseSize = 1;
+    const half = baseSize/2;
+
+    // Choose a nice triangle height for visuals (slant height)
+    const triHeight = 0.9;
+
+    const base = new THREE.Group();
+    root.add(base);
+
+    // Base square (in XY plane)
+    base.add(squareFace(0x6ea8ff, baseSize));
+
+    function hingedTriangle(parent, color, hingePos, facePos, faceRot){
+      const pivot = new THREE.Group();
+      pivot.position.copy(hingePos);
+      parent.add(pivot);
+
+      const face = triFace(color, baseSize, triHeight);
+      face.position.copy(facePos);
+      face.rotation.set(faceRot.x, faceRot.y, faceRot.z);
+      pivot.add(face);
+
+      return pivot;
+    }
+
+    // TRIANGLES start FLAT (net): lying in XY plane, pointing outward from the base
+    // Top edge: hinge at y=+half, triangle base sits on hinge, triangle points +Y
+    const topPivot = hingedTriangle(
+      base, 0xff8b8b,
+      new THREE.Vector3(0,  half, 0),
+      new THREE.Vector3(0, 0, 0),                  // base edge on pivot line
+      new THREE.Euler(0, 0, 0)                      // points +Y already
+    );
+
+    // Bottom edge: hinge at y=-half, triangle points -Y (rotate 180° around Z)
+    const botPivot = hingedTriangle(
+      base, 0x8bffb0,
+      new THREE.Vector3(0, -half, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Euler(0, 0, Math.PI)
+    );
+
+    // Right edge: hinge at x=+half, triangle points +X (rotate -90° around Z)
+    const rightPivot = hingedTriangle(
+      base, 0xffe08b,
+      new THREE.Vector3( half, 0, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Euler(0, 0, -Math.PI/2)
+    );
+
+    // Left edge: hinge at x=-half, triangle points -X (rotate +90° around Z)
+    const leftPivot = hingedTriangle(
+      base, 0xc78bff,
+      new THREE.Vector3(-half, 0, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Euler(0, 0, Math.PI/2)
+    );
+
+    root.userData = { kind:"pyramid", topPivot, botPivot, rightPivot, leftPivot };
+
+    root.rotation.set(-0.18, 0.35, 0);
+    controls.target.set(0, 0, 0);
+  }
+
+  // --- Fold / Unfold ---
+  // slider: 0 folded (3D), 100 flat (net)
+  function applyOpenAmount(val){
+    const s = Number(val) / 100;
+
+    // angle goes from "fold angle" down to 0
+    if (root.userData.kind === "cube"){
+      const a = (1 - s) * (Math.PI / 2);
+      const { rightPivot, leftPivot, topPivot, botPivot, backPivot } = root.userData;
+
+      rightPivot.rotation.y = -a;
+      leftPivot.rotation.y  =  a;
+      topPivot.rotation.x   =  a;
+      botPivot.rotation.x   = -a;
+      backPivot.rotation.y  = -a;
+    }
+
+    if (root.userData.kind === "pyramid"){
+      // Not a full 90° fold; a bit less looks more like a pyramid visually
+      const foldMax = (Math.PI / 2) * 0.86; // ~77°
+      const a = (1 - s) * foldMax;
+
+      const { topPivot, botPivot, rightPivot, leftPivot } = root.userData;
+
+      // Rotate each triangle UP around its base edge into +Z
+      // Top/bottom hinge axis is X; left/right hinge axis is Y
+      topPivot.rotation.x   = -a;
+      botPivot.rotation.x   =  a;
+      rightPivot.rotation.y =  a;
+      leftPivot.rotation.y  = -a;
+    }
+  }
+
+  // --- UI wiring ---
+  let current = "cube";
+
+  cubeBtn.addEventListener("click", () => {
+    current = "cube";
+    buildCube();
+    applyOpenAmount(slider.value);
+  });
+
+  pyrBtn.addEventListener("click", () => {
+    current = "pyramid";
+    buildPyramid();
+    applyOpenAmount(slider.value);
+  });
+
+  slider.addEventListener("input", () => applyOpenAmount(slider.value));
+
+  // --- Resize ---
+  function resize(){
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // Start with cube
+  buildCube();
+  applyOpenAmount(slider.value);
+
+  // --- Animate ---
+  function tick(){
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  tick();
 </script>
-
-<style>
-
-body{
-margin:0;
-font-family:Arial;
-background:linear-gradient(135deg,#ffe6ff,#e6f6ff,#eaffef,#fff5dc);
-}
-
-.wrap{
-display:grid;
-grid-template-columns:320px 1fr;
-height:100vh;
-padding:16px;
-gap:16px;
-}
-
-.panel{
-background:white;
-padding:16px;
-border-radius:16px;
-}
+</body>
+</html>}
 
 button{
 width:100%;
