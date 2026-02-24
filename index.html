@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Shape Net Explorer: Cube & Pyramid</title>
+  <title>Shape Net Explorer (Cube & Pyramid)</title>
 
-  <!-- Fixes: "Failed to resolve module specifier 'three'" -->
+  <!-- ✅ Import map: fixes "Failed to resolve module specifier 'three'" on GitHub Pages -->
   <script type="importmap">
   {
     "imports": {
@@ -18,7 +18,7 @@
   <style>
     :root{
       --ink:#1b2150;
-      --panel:#ffffffd6;
+      --panel:#ffffffd9;
       --shadow: 0 14px 34px rgba(0,0,0,.12);
     }
     *{ box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
@@ -29,7 +29,7 @@
     }
     .wrap{
       display:grid;
-      grid-template-columns: 340px 1fr;
+      grid-template-columns: 360px 1fr;
       gap:16px;
       height:100vh;
       padding:16px;
@@ -109,7 +109,7 @@
       </div>
 
       <div class="small" style="margin-top:10px;">
-        Tip for kids: Rotate and find the <b>base</b> and the <b>faces</b>.
+        Teaching prompt: “Which face is the base? How many faces can you count?”
       </div>
     </div>
 
@@ -127,7 +127,7 @@
   const cubeBtn = document.getElementById("cubeBtn");
   const pyrBtn  = document.getElementById("pyrBtn");
 
-  // --- Scene / Camera / Renderer ---
+  // ---------- Scene / Camera / Renderer ----------
   const scene = new THREE.Scene();
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
@@ -135,7 +135,7 @@
 
   const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(0x000000, 0); // ✅ transparent clear (no black)
+  renderer.setClearColor(0x000000, 0); // transparent, so no black background
   container.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -143,9 +143,8 @@
   controls.dampingFactor = 0.08;
   controls.minDistance = 2.2;
   controls.maxDistance = 12;
-  controls.target.set(0, 0, 0);
 
-  // Bright friendly lights
+  // Friendly bright lights
   scene.add(new THREE.AmbientLight(0xffffff, 0.95));
   const dir = new THREE.DirectionalLight(0xffffff, 1.15);
   dir.position.set(5, 7, 4);
@@ -153,26 +152,34 @@
   const hemi = new THREE.HemisphereLight(0xbad1ff, 0xffffff, 0.7);
   scene.add(hemi);
 
-  // A gentle orientation grid
+  // Orientation grid
   const grid = new THREE.GridHelper(10, 10, 0x9db6ff, 0xdfe9ff);
   grid.position.y = -1.2;
   scene.add(grid);
 
-  // --- Helpers ---
-  function outline(mesh, color=0x1b2150, opacity=0.55){
+  // ---------- Helpers ----------
+  function addOutline(mesh, color=0x1b2150, opacity=0.55){
     const edges = new THREE.EdgesGeometry(mesh.geometry);
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color, transparent:true, opacity }));
+    const line = new THREE.LineSegments(
+      edges,
+      new THREE.LineBasicMaterial({ color, transparent:true, opacity })
+    );
     mesh.add(line);
     return mesh;
   }
 
   function squareFace(colorHex, size=1){
     const geom = new THREE.PlaneGeometry(size, size);
-    const mat = new THREE.MeshStandardMaterial({ color: colorHex, side: THREE.DoubleSide, roughness:0.35, metalness:0.05 });
-    return outline(new THREE.Mesh(geom, mat));
+    const mat = new THREE.MeshStandardMaterial({
+      color: colorHex, side: THREE.DoubleSide,
+      roughness:0.35, metalness:0.05
+    });
+    return addOutline(new THREE.Mesh(geom, mat));
   }
 
-  // Triangle in XY plane with base on y=0 from x=-0.5..+0.5, apex at (0, height)
+  // Triangle in XY plane:
+  // base edge from (-base/2, 0) to (+base/2, 0)
+  // apex at (0, height)
   function triFace(colorHex, base=1, height=0.9){
     const hw = base/2;
     const positions = new Float32Array([
@@ -185,11 +192,13 @@
     geom.setIndex([0,1,2]);
     geom.computeVertexNormals();
 
-    const mat = new THREE.MeshStandardMaterial({ color: colorHex, side: THREE.DoubleSide, roughness:0.35, metalness:0.05 });
-    return outline(new THREE.Mesh(geom, mat));
+    const mat = new THREE.MeshStandardMaterial({
+      color: colorHex, side: THREE.DoubleSide,
+      roughness:0.35, metalness:0.05
+    });
+    return addOutline(new THREE.Mesh(geom, mat));
   }
 
-  // Root holder for current shape
   let root = new THREE.Group();
   scene.add(root);
 
@@ -206,7 +215,7 @@
     scene.add(root);
   }
 
-  // --- Build Cube (net that folds) ---
+  // ---------- Build Cube ----------
   function buildCube(){
     clearShape();
 
@@ -221,9 +230,11 @@
       const pivot = new THREE.Group();
       pivot.position.copy(hingePos);
       parent.add(pivot);
+
       const face = squareFace(color, size);
       face.position.copy(facePos);
       pivot.add(face);
+
       return pivot;
     }
 
@@ -239,80 +250,67 @@
     controls.target.set(0.5, 0.1, 0);
   }
 
-  // --- Build Square Pyramid (real net) ---
+  // ---------- Build Square Pyramid (REAL net + closes) ----------
   function buildPyramid(){
     clearShape();
 
-    const baseSize = 1;
-    const half = baseSize/2;
+    const baseSize = 1;     // square base side length
+    const triHeight = 0.9;  // slant height of each triangular face (must be >= baseSize/2)
 
-    // Choose a nice triangle height for visuals (slant height)
-    const triHeight = 0.9;
+    const half = baseSize/2;
 
     const base = new THREE.Group();
     root.add(base);
-
-    // Base square (in XY plane)
     base.add(squareFace(0x6ea8ff, baseSize));
 
-    function hingedTriangle(parent, color, hingePos, facePos, faceRot){
+    // Hinged triangle: pivot placed on the base edge line
+    function hingedTriangle(parent, color, hingePos, faceRotZ){
       const pivot = new THREE.Group();
       pivot.position.copy(hingePos);
       parent.add(pivot);
 
-      const face = triFace(color, baseSize, triHeight);
-      face.position.copy(facePos);
-      face.rotation.set(faceRot.x, faceRot.y, faceRot.z);
-      pivot.add(face);
+      const tri = triFace(color, baseSize, triHeight);
 
+      // Put triangle so its base edge sits on the pivot line:
+      // Our triangle base is on y=0, so we keep it there.
+      tri.rotation.z = faceRotZ;
+
+      pivot.add(tri);
       return pivot;
     }
 
-    // TRIANGLES start FLAT (net): lying in XY plane, pointing outward from the base
-    // Top edge: hinge at y=+half, triangle base sits on hinge, triangle points +Y
-    const topPivot = hingedTriangle(
-      base, 0xff8b8b,
-      new THREE.Vector3(0,  half, 0),
-      new THREE.Vector3(0, 0, 0),                  // base edge on pivot line
-      new THREE.Euler(0, 0, 0)                      // points +Y already
-    );
+    // In the FLAT net:
+    // Top edge: hinge at y=+half, triangle points +Y
+    const topPivot = hingedTriangle(base, 0xff8b8b, new THREE.Vector3(0,  half, 0), 0);
 
-    // Bottom edge: hinge at y=-half, triangle points -Y (rotate 180° around Z)
-    const botPivot = hingedTriangle(
-      base, 0x8bffb0,
-      new THREE.Vector3(0, -half, 0),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Euler(0, 0, Math.PI)
-    );
+    // Bottom edge: hinge at y=-half, triangle points -Y
+    const botPivot = hingedTriangle(base, 0x8bffb0, new THREE.Vector3(0, -half, 0), Math.PI);
 
-    // Right edge: hinge at x=+half, triangle points +X (rotate -90° around Z)
-    const rightPivot = hingedTriangle(
-      base, 0xffe08b,
-      new THREE.Vector3( half, 0, 0),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Euler(0, 0, -Math.PI/2)
-    );
+    // Right edge: hinge at x=+half, triangle points +X
+    const rightPivot = hingedTriangle(base, 0xffe08b, new THREE.Vector3( half, 0, 0), -Math.PI/2);
 
-    // Left edge: hinge at x=-half, triangle points -X (rotate +90° around Z)
-    const leftPivot = hingedTriangle(
-      base, 0xc78bff,
-      new THREE.Vector3(-half, 0, 0),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Euler(0, 0, Math.PI/2)
-    );
+    // Left edge: hinge at x=-half, triangle points -X
+    const leftPivot = hingedTriangle(base, 0xc78bff, new THREE.Vector3(-half, 0, 0),  Math.PI/2);
 
-    root.userData = { kind:"pyramid", topPivot, botPivot, rightPivot, leftPivot };
+    root.userData = {
+      kind:"pyramid",
+      baseSize,
+      triHeight,
+      topPivot,
+      botPivot,
+      rightPivot,
+      leftPivot
+    };
 
     root.rotation.set(-0.18, 0.35, 0);
     controls.target.set(0, 0, 0);
   }
 
-  // --- Fold / Unfold ---
+  // ---------- Fold / Unfold ----------
   // slider: 0 folded (3D), 100 flat (net)
   function applyOpenAmount(val){
     const s = Number(val) / 100;
 
-    // angle goes from "fold angle" down to 0
     if (root.userData.kind === "cube"){
       const a = (1 - s) * (Math.PI / 2);
       const { rightPivot, leftPivot, topPivot, botPivot, backPivot } = root.userData;
@@ -325,39 +323,37 @@
     }
 
     if (root.userData.kind === "pyramid"){
-      // Not a full 90° fold; a bit less looks more like a pyramid visually
-      const foldMax = (Math.PI / 2) * 0.86; // ~77°
+      const { baseSize, triHeight, topPivot, botPivot, rightPivot, leftPivot } = root.userData;
+
+      // ✅ Exact fold angle so the 4 triangles meet at one apex
+      // delta = acos((a/2)/l)
+      const half = baseSize / 2;
+      const foldMax = Math.acos(half / triHeight);
+
       const a = (1 - s) * foldMax;
 
-      const { topPivot, botPivot, rightPivot, leftPivot } = root.userData;
-
-      // Rotate each triangle UP around its base edge into +Z
-      // Top/bottom hinge axis is X; left/right hinge axis is Y
-      topPivot.rotation.x   = -a;
-      botPivot.rotation.x   =  a;
-      rightPivot.rotation.y =  a;
-      leftPivot.rotation.y  = -a;
+      // ✅ Correct directions so all faces lift UP (+Z)
+      topPivot.rotation.x   =  a;
+      botPivot.rotation.x   = -a;
+      rightPivot.rotation.y = -a;
+      leftPivot.rotation.y  =  a;
     }
   }
 
-  // --- UI wiring ---
-  let current = "cube";
-
+  // ---------- UI ----------
   cubeBtn.addEventListener("click", () => {
-    current = "cube";
     buildCube();
     applyOpenAmount(slider.value);
   });
 
   pyrBtn.addEventListener("click", () => {
-    current = "pyramid";
     buildPyramid();
     applyOpenAmount(slider.value);
   });
 
   slider.addEventListener("input", () => applyOpenAmount(slider.value));
 
-  // --- Resize ---
+  // ---------- Resize ----------
   function resize(){
     const w = container.clientWidth;
     const h = container.clientHeight;
@@ -372,7 +368,7 @@
   buildCube();
   applyOpenAmount(slider.value);
 
-  // --- Animate ---
+  // ---------- Animate ----------
   function tick(){
     controls.update();
     renderer.render(scene, camera);
